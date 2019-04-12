@@ -28,6 +28,7 @@ EmployeePayment.prototype._getEmployesFromFile = async function(file) {
 		});
 		employee.on('line', line => employees_data.push(line));
 		employee.on('close', ()=>{
+			console.log(employees_data)
 			resolve(employees_data)
 		});
 	});
