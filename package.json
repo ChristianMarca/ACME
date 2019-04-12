@@ -2,10 +2,10 @@
   "name": "acme",
   "version": "1.0.0",
   "description": "Solution to the problem of payment to employees of ACME",
-  "main": "script.js",
+  "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node script.js"
+    "start": "node main.js"
   },
   "keywords": [
     "ACME"
