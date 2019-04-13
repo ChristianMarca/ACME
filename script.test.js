@@ -130,11 +130,11 @@ describe('Calculate the value to pay per employe',()=>{
 describe('Calculate the total value to pay',()=>{
 
 	test('Calculate the total value to pay asynchronously',()=>{
-		return expect(employeePayment._getAmountToPay('employees_data.txt',false)).resolves.toEqual(expect.arrayContaining([ 'The amount to pay RENE is: 215.00 USD','The amount to pay ASTRID is: 85.00 USD','The amount to pay ASTRIDgdg is: 329.30 USD' ]));
+		return expect(employeePayment._getAmountToPay('employees_data.txt',false)).resolves.toEqual(expect.arrayContaining([ 'The amount to pay RENE is: 215.00 USD','The amount to pay ASTRID is: 85.00 USD','The amount to pay JHON is: 329.30 USD' ]));
 	});
 
 	test('Calculate the total value to pay synchronously',()=>{
-		return expect(employeePayment._getAmountToPay('employees_data.txt',true)).toEqual(expect.arrayContaining([ 'The amount to pay RENE is: 215.00 USD','The amount to pay ASTRID is: 85.00 USD','The amount to pay ASTRIDgdg is: 329.30 USD' ]));
+		return expect(employeePayment._getAmountToPay('employees_data.txt',true)).toEqual(expect.arrayContaining([ 'The amount to pay RENE is: 215.00 USD','The amount to pay ASTRID is: 85.00 USD','The amount to pay JHON is: 329.30 USD' ]));
 	});
 
 	test('Calculate the total value to pay asynchronously with a nonexistent file',()=>{

@@ -65,7 +65,10 @@ EmployeePayment.prototype._calculateTime = function(startHour,startMinute,endHou
 		output: number (number of hours between two hours a day,
 						 and 0 if there is an error in the income data)
 	*/
-
+	startHour=Number(startHour);
+	startMinute=Number(startMinute);
+	endHour=Number(endHour);
+	endMinute=Number(endMinute);
 	if (startHour >= 24 || endHour >= 24 || startMinute >= 60 || endMinute >= 60 || endHour<startHour){
 		return 0;
 	}
@@ -236,7 +239,6 @@ EmployeePayment.prototype.amountToPay = async function() {
 	/* 
 		Returns a promise with an array of values to be paid to employees
 	*/
-
 	return await this._getAmountToPay(this.file,false);
 };
 
