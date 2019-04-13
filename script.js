@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('fs')
 const readline = require('readline')
 const path = require('path')
@@ -16,7 +18,7 @@ EmployeePayment.prototype._getEmployesFromFile = async function(file) {
 	/*
 		Read File and return an array with employees information
 		input: file (name of the file that contains the employee record)
-		output: array (array of employee record information)
+		output: array (Promise) (array of employee record information)
 	*/
 
 	let employees_data = [];
@@ -28,10 +30,28 @@ EmployeePayment.prototype._getEmployesFromFile = async function(file) {
 		});
 		employee.on('line', line => employees_data.push(line));
 		employee.on('close', ()=>{
-			console.log(employees_data)
 			resolve(employees_data)
 		});
 	});
+};
+
+EmployeePayment.prototype._getEmployesFromFileSync = function(file) {
+	/*
+		Read File and return an array with employees information
+		input: file (name of the file that contains the employee record)
+		output: array (array of employee record information)
+	*/
+	try{
+		return fs.readFileSync(file, 'utf-8').split('\n').filter(Boolean);
+	}catch(error){
+		return {
+			Error: error,
+			errno: -2,
+			code: 'ENOENT',
+			syscall: 'open',
+			path: __dirname+'/'+file
+		}
+	}
 };
 
 EmployeePayment.prototype._calculateTime = function(startHour,startMinute,endHour,endMinute) {
@@ -56,20 +76,19 @@ EmployeePayment.prototype._calculateTime = function(startHour,startMinute,endHou
 	return (endHour - startHour + (endMinute - startMinute) / 60).toFixed(2);
 };
 
-EmployeePayment.prototype._verifyHour = function(hour, minute, shift, type) {
+EmployeePayment.prototype._verifyHour = function(time, shift, type) {
 	/*
 		check if the hour of entry is within the limit of the restriction
 		input: 
-				- hour: (hour to analyze in a work shift restriction)
-				- minute: (minute to analyze in a work shift restriction)
+				- time: (hour to analyze in a work shift restriction)
 				- shift: (restriction of the work shift)
 				- type:  (type of restriction, upper limit (false), lower limit (true))
 		output: boolean (complies or not with the restriction)
 	*/
 
 	let shiftHour = Number(shift[0]);
-	hour = Number(hour);
-	minute = Number(minute);
+	let hour = Number(time[0]);
+	let minute = Number(time[1]);
 	if (type) {
 		if (hour == shiftHour) {
 			if (minute == 0) return false;
@@ -113,10 +132,10 @@ EmployeePayment.prototype._paymentPerDay = function(startHour,startMinute,endHou
 	let isFound = false;
 	let amountToPlay = 0;
 	for (let i = 0; i < valueByDate.length; i++) {
-		let startHourShift = valueByDate[i].start.split(':');
-		let endHourShift = valueByDate[i].end.split(':');
-		let lowerLimit = this._verifyHour(startHour, startMinute, startHourShift, true);
-		let upperLimit = this._verifyHour(endHour, endMinute, endHourShift, false);
+		let startHourShift = valueByDate[i].start;
+		let endHourShift = valueByDate[i].end;
+		let lowerLimit = this._verifyHour([startHour, startMinute], startHourShift, true);
+		let upperLimit = this._verifyHour([endHour, endMinute], endHourShift, false);
 		if ( lowerLimit && upperLimit ) {
 			let time = this._calculateTime( startHour,startMinute,endHour,endMinute);
 			amountToPlay = valueByDate[i].USD * time;
@@ -127,18 +146,18 @@ EmployeePayment.prototype._paymentPerDay = function(startHour,startMinute,endHou
 		return amountToPlay;
 	} else {
 		for (let i = 0; i < valueByDate.length; i++) {
-			let startHourShift = valueByDate[i].start.split(':');
-			let endHourShift = valueByDate[i].end.split(':');
+			let startHourShift = valueByDate[i].start;
+			let endHourShift = valueByDate[i].end;
 			let startHourShiftNext,endHourShiftNext;
 			if(i==2){
-				startHourShiftNext=valueByDate[0].start.split(':');
-				endHourShiftNext=valueByDate[1].start.split(':');
+				startHourShiftNext=valueByDate[0].start;
+				endHourShiftNext=valueByDate[1].start;
 			}else{
-				startHourShiftNext=valueByDate[i+1].start.split(':');
-				endHourShiftNext=valueByDate[i+1].end.split(':');
+				startHourShiftNext=valueByDate[i+1].start;
+				endHourShiftNext=valueByDate[i+1].end;
 			}
-			let lowerLimit = this._verifyHour(startHour, startMinute, startHourShift, true);
-			let upperLimit = this._verifyHour(endHour,endMinute, endHourShiftNext, false);
+			let lowerLimit = this._verifyHour([startHour, startMinute], startHourShift, true);
+			let upperLimit = this._verifyHour([endHour,endMinute], endHourShiftNext, false);
 			if ( lowerLimit && upperLimit) {
 				const totalFirstTurn=this._paymentPerDay(startHour,startMinute,endHourShift[0],endHourShift[1],valueByDate);
 				const totalSecondTurn=this._paymentPerDay(startHourShiftNext[0],startHourShiftNext[1],endHour,endMinute,valueByDate);
@@ -155,7 +174,7 @@ EmployeePayment.prototype._calculateAmountToPay = function(employeeInfo) {
 		input: employeeInfo (information array of employee work hours)
 		output number (total amount to be paid to an employee)
 	*/
-
+	
 	let valueByDate = {};
 	let total = 0;
 	for (let i = 0; i < employeeInfo.length; i += 5) {
@@ -175,28 +194,57 @@ EmployeePayment.prototype._calculateAmountToPay = function(employeeInfo) {
 	return total.toFixed(2);
 };
 
-EmployeePayment.prototype._getAmountToPay = async function(file) {
+EmployeePayment.prototype._calculateTotalAmountToPay=function(data){
+	
 	/*
 		Obtain the values to be paid to employees
+	*/
+
+	return data.map(employee => {
+		let info = employee.match(/([[a-z]+|[^a-z]+]|[^=,:-]+)/gi);
+		let valueToPaid=this._calculateAmountToPay(info.slice(1, info.length + 1));
+		let paid =`The amount to pay ${info[0]} is: ${valueToPaid} USD`;
+		// process.stdout.write(paid)
+		return paid
+	});
+}
+
+EmployeePayment.prototype._getAmountToPay = function(file,isSync) {
+	/*
+		Return the values to be paid to employees
 		input: file (name of the file that contains the employee record)
 		output: void (print in console the amount to be paid to employees)
 	*/
 
-	try{
-		const EMPLOYES = await this._getEmployesFromFile(file);
-		EMPLOYES.map(employee => {
-			let info = employee.match(/([[a-z]+|[^a-z]+]|[^=,:-]+)/gi);
-			let valueToPaid=this._calculateAmountToPay(info.slice(1, info.length + 1));
-			process.stdout.write(`The amount to pay ${info[0]} is: ${valueToPaid} USD \n`)
-		});
-	}catch(error){
-		process.stdout.write('An error has occurred: ',error);
-		process.stdout.write(error);
+	if(isSync){
+		let employees_data=this._getEmployesFromFileSync(file);
+		if(employees_data.Error) return employees_data
+		return this._calculateTotalAmountToPay(employees_data);
+	}else{
+		try{
+			return this._getEmployesFromFile(file).then(data=>{
+				return this._calculateTotalAmountToPay(data);
+			});
+		}catch(error){
+			process.stdout.write('An error has occurred:');
+			process.stdout.write(error);
+		}
 	}
 };
 
-EmployeePayment.prototype.amountToPay = function() {
-	this._getAmountToPay(this.file);
+EmployeePayment.prototype.amountToPay = async function() {
+	/* 
+		Returns a promise with an array of values to be paid to employees
+	*/
+
+	return await this._getAmountToPay(this.file,false);
 };
+
+EmployeePayment.prototype.amountToPaySync=function(){
+	/*
+		Returns an array of the values to be paid to employees
+	*/
+	return this._getAmountToPay(this.file,true);
+}
 
 module.exports = EmployeePayment;
